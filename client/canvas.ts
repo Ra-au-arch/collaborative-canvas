@@ -105,6 +105,13 @@ export class CanvasManager {
 
   public setTool(tool: ToolType): void {
     this.currentTool = tool;
+    if (tool === 'text') {
+      this.draftCanvas.style.cursor = 'text';
+    } else if (tool === 'eraser') {
+      this.draftCanvas.style.cursor = 'cell';
+    } else {
+      this.draftCanvas.style.cursor = 'crosshair';
+    }
   }
 
   public setColor(color: string): void {
@@ -419,6 +426,7 @@ export class CanvasManager {
       const pt = this.getPointerPos(e);
 
       if (this.currentTool === 'text') {
+        e.preventDefault();
         this.onStrokeStartCb('text', this.currentColor, this.currentWidth, pt);
         return;
       }

@@ -145,6 +145,28 @@ class CollaborativeCanvasApp {
           this.uiManager.spawnTextInput(startPoint.x, startPoint.y, color, width, (text: string) => {
             if (!text.trim()) return;
             const opId = `op_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+            // 0ms instant local rendering
+            const tempSeq = this.state.operations.length > 0
+              ? this.state.operations[this.state.operations.length - 1].seq + 1
+              : 1;
+            const localOp: DrawOperation = {
+              id: opId,
+              seq: tempSeq,
+              userId: this.state.user?.id || 'me',
+              userName: this.state.user?.name || 'You',
+              tool: 'text',
+              color,
+              width,
+              points: [startPoint],
+              text,
+              timestamp: Date.now()
+            };
+            this.canvasManager.commitOperation(localOp);
+            this.state.stats.operationCount = this.state.operations.length;
+            this.syncDiagnostics();
+
+            // Broadcast to room peers via server
             this.socketClient.emitStrokeStart({
               id: opId,
               tool: 'text',

@@ -482,47 +482,101 @@ export class UIManager {
     width: number,
     onCommit: (text: string) => void
   ): void {
-    const existing = document.querySelector('.canvas-inline-input');
-    if (existing) existing.remove();
+    // If an existing input is already open, commit it first
+    const existingWrapper = document.querySelector('.canvas-inline-text-wrapper') as HTMLElement;
+    if (existingWrapper) {
+      const commitFn = (existingWrapper as any).__commitFn;
+      if (typeof commitFn === 'function') {
+        commitFn();
+      } else {
+        existingWrapper.remove();
+      }
+    }
 
     const container = document.getElementById('textEditorContainer');
     if (!container) return;
+
+    const spawnedAt = Date.now();
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'canvas-inline-text-wrapper';
+    wrapper.style.left = `${Math.max(8, x)}px`;
+    wrapper.style.top = `${Math.max(8, y)}px`;
 
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'canvas-inline-input';
     input.placeholder = 'Type text & Enter...';
-    input.style.left = `${x}px`;
-    input.style.top = `${y}px`;
     input.style.color = color;
     const fontSize = Math.max(16, width * 4);
     input.style.fontSize = `${fontSize}px`;
 
-    container.appendChild(input);
-    input.focus();
+    const commitBtn = document.createElement('button');
+    commitBtn.type = 'button';
+    commitBtn.className = 'canvas-inline-commit-btn';
+    commitBtn.title = 'Add text (Enter)';
+    commitBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    `;
 
-    let committed = false;
-    const finish = () => {
-      if (committed) return;
-      committed = true;
+    wrapper.appendChild(input);
+    wrapper.appendChild(commitBtn);
+
+    // Stop events inside wrapper from bubbling to draftCanvas
+    const stopBubble = (e: Event) => e.stopPropagation();
+    wrapper.addEventListener('pointerdown', stopBubble);
+    wrapper.addEventListener('mousedown', stopBubble);
+    wrapper.addEventListener('touchstart', stopBubble);
+    wrapper.addEventListener('click', stopBubble);
+
+    container.appendChild(wrapper);
+
+    let finished = false;
+    const finish = (shouldCommit: boolean = true) => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('pointerdown', handleOutsidePointer, true);
       const val = input.value.trim();
-      input.remove();
-      if (val) {
+      wrapper.remove();
+      if (shouldCommit && val.length > 0) {
         onCommit(val);
       }
     };
 
+    (wrapper as any).__commitFn = () => finish(true);
+
+    commitBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      finish(true);
+    });
+
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        finish();
+        e.stopPropagation();
+        finish(true);
       } else if (e.key === 'Escape') {
-        committed = true;
-        input.remove();
+        e.preventDefault();
+        e.stopPropagation();
+        finish(false);
       }
     });
 
-    input.addEventListener('blur', finish);
+    const handleOutsidePointer = (e: PointerEvent) => {
+      if (Date.now() - spawnedAt < 250) return;
+      if (!wrapper.contains(e.target as Node)) {
+        finish(true);
+      }
+    };
+
+    // Delay focus and outside pointer listener so the mouseup of the spawn click doesn't trigger blur
+    setTimeout(() => {
+      input.focus();
+      window.addEventListener('pointerdown', handleOutsidePointer, true);
+    }, 60);
   }
 
   public setRoomName(room: string): void {
