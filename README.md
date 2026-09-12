@@ -99,12 +99,16 @@ Runs the automated test suite covering:
 | Shortcut | Action |
 | :--- | :--- |
 | `B` | Switch to Brush Tool |
+| `T` | Switch to Text Tool (click canvas to type) |
+| `R` | Switch to Rectangle Tool |
+| `C` | Switch to Circle Tool |
+| `L` | Switch to Line Tool |
 | `E` | Switch to Eraser Tool |
 | `[` | Decrease Stroke Width by 2px |
 | `]` | Increase Stroke Width by 2px |
 | `Cmd/Ctrl + Z` | Global Collaborative Undo |
 | `Cmd/Ctrl + Shift + Z` or `Cmd/Ctrl + Y` | Global Collaborative Redo |
-| `Escape` | Close modals / dropdowns |
+| `Escape` | Close modals / dropdowns / dismiss text box |
 
 ---
 
