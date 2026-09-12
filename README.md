@@ -1,5 +1,13 @@
 # 🎨 Real-Time Collaborative Drawing Canvas
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://collaborative-canvas-0txb.onrender.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-black?style=for-the-badge&logo=socket.io&logoColor=white)](https://socket.io/)
+[![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas_API-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
+
+> 🌐 **Live Web Application**: **[https://collaborative-canvas-0txb.onrender.com](https://collaborative-canvas-0txb.onrender.com)**  
+> Open the link in two browser tabs, windows, or on mobile to collaborate in real time with live streaming strokes, text, shapes, and remote cursors!
+
 A high-performance, multi-user collaborative drawing application built with **TypeScript**, **native HTML5 Canvas API**, **Node.js**, **Express**, and **Socket.IO**. No frontend frameworks (React/Vue/Angular) and no drawing libraries (Fabric.js/Konva/Excalidraw).
 
 Multiple collaborators in the same room can draw simultaneously, see each other's live strokes and cursors with zero latency, and utilize server-authoritative global undo/redo and canvas clearing.
