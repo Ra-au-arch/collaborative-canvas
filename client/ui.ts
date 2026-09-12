@@ -21,6 +21,9 @@ export interface UIOptions {
   onRedo: () => void;
   onClear: () => void;
   onRoomChange: (roomId: string) => void;
+  onSendReaction?: (emoji: string) => void;
+  onToggleGrid?: (gridType: 'clean' | 'dots' | 'grid') => void;
+  onExport?: () => void;
 }
 
 export class UIManager {
@@ -30,6 +33,9 @@ export class UIManager {
   private currentRoomNameEl: HTMLElement;
   private copyLinkBtn: HTMLButtonElement;
   private switchRoomBtn: HTMLButtonElement;
+  private gridToggleBtn: HTMLButtonElement;
+  private gridLabelEl: HTMLElement;
+  private exportBtn: HTMLButtonElement;
   private statusBadgeEl: HTMLElement;
   private usersTriggerEl: HTMLButtonElement;
   private usersDropdownEl: HTMLElement;
@@ -39,6 +45,9 @@ export class UIManager {
 
   // Toolbar elements
   private toolBrushBtn: HTMLButtonElement;
+  private toolRectangleBtn: HTMLButtonElement;
+  private toolCircleBtn: HTMLButtonElement;
+  private toolLineBtn: HTMLButtonElement;
   private toolEraserBtn: HTMLButtonElement;
   private swatchesContainer: HTMLElement;
   private customColorPicker: HTMLInputElement;
@@ -61,6 +70,8 @@ export class UIManager {
 
   // Cursors & Overlay
   private cursorsContainer: HTMLElement;
+  private reactionsContainer: HTMLElement;
+  private ripplesContainer: HTMLElement;
   private onboardingHint: HTMLElement;
   private toastContainer: HTMLElement;
 
@@ -80,6 +91,7 @@ export class UIManager {
   private currentColor: string = '#3b82f6';
   private currentWidth: number = 4;
   private currentTool: ToolType = 'brush';
+  private currentGrid: 'clean' | 'dots' | 'grid' = 'clean';
 
   constructor(options: UIOptions) {
     this.options = options;
@@ -88,6 +100,9 @@ export class UIManager {
     this.currentRoomNameEl = document.getElementById('currentRoomName')!;
     this.copyLinkBtn = document.getElementById('copyLinkBtn') as HTMLButtonElement;
     this.switchRoomBtn = document.getElementById('switchRoomBtn') as HTMLButtonElement;
+    this.gridToggleBtn = document.getElementById('gridToggleBtn') as HTMLButtonElement;
+    this.gridLabelEl = document.getElementById('gridLabel')!;
+    this.exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
     this.statusBadgeEl = document.getElementById('statusBadge')!;
     this.usersTriggerEl = document.getElementById('usersTrigger') as HTMLButtonElement;
     this.usersDropdownEl = document.getElementById('usersDropdown')!;
@@ -96,6 +111,9 @@ export class UIManager {
     this.dropdownUserCountEl = document.getElementById('dropdownUserCount')!;
 
     this.toolBrushBtn = document.getElementById('toolBrush') as HTMLButtonElement;
+    this.toolRectangleBtn = document.getElementById('toolRectangle') as HTMLButtonElement;
+    this.toolCircleBtn = document.getElementById('toolCircle') as HTMLButtonElement;
+    this.toolLineBtn = document.getElementById('toolLine') as HTMLButtonElement;
     this.toolEraserBtn = document.getElementById('toolEraser') as HTMLButtonElement;
     this.swatchesContainer = document.getElementById('swatchesContainer')!;
     this.customColorPicker = document.getElementById('customColorPicker') as HTMLInputElement;
@@ -116,6 +134,8 @@ export class UIManager {
     this.cancelRoomBtn = document.getElementById('cancelRoomBtn') as HTMLButtonElement;
 
     this.cursorsContainer = document.getElementById('cursorsContainer')!;
+    this.reactionsContainer = document.getElementById('reactionsContainer')!;
+    this.ripplesContainer = document.getElementById('ripplesContainer')!;
     this.onboardingHint = document.getElementById('onboardingHint')!;
     this.toastContainer = document.getElementById('toastContainer')!;
 
@@ -163,7 +183,7 @@ export class UIManager {
       }
     });
 
-    // If eraser was active, automatically switch back to brush
+    // If eraser was active, switch back to brush
     if (this.currentTool === 'eraser') {
       this.selectTool('brush');
     }
@@ -173,13 +193,23 @@ export class UIManager {
 
   public selectTool(tool: ToolType): void {
     this.currentTool = tool;
-    if (tool === 'brush') {
-      this.toolBrushBtn.classList.add('active');
-      this.toolEraserBtn.classList.remove('active');
-    } else {
-      this.toolEraserBtn.classList.add('active');
-      this.toolBrushBtn.classList.remove('active');
-    }
+
+    // Clear active from all tool buttons
+    const toolBtns = [
+      this.toolBrushBtn,
+      this.toolRectangleBtn,
+      this.toolCircleBtn,
+      this.toolLineBtn,
+      this.toolEraserBtn
+    ];
+    toolBtns.forEach(btn => btn?.classList.remove('active'));
+
+    if (tool === 'brush') this.toolBrushBtn?.classList.add('active');
+    else if (tool === 'rectangle') this.toolRectangleBtn?.classList.add('active');
+    else if (tool === 'circle') this.toolCircleBtn?.classList.add('active');
+    else if (tool === 'line') this.toolLineBtn?.classList.add('active');
+    else if (tool === 'eraser') this.toolEraserBtn?.classList.add('active');
+
     this.options.onToolSelect(tool);
   }
 
@@ -211,8 +241,11 @@ export class UIManager {
 
   private setupListeners(): void {
     // Tool buttons
-    this.toolBrushBtn.addEventListener('click', () => this.selectTool('brush'));
-    this.toolEraserBtn.addEventListener('click', () => this.selectTool('eraser'));
+    this.toolBrushBtn?.addEventListener('click', () => this.selectTool('brush'));
+    this.toolRectangleBtn?.addEventListener('click', () => this.selectTool('rectangle'));
+    this.toolCircleBtn?.addEventListener('click', () => this.selectTool('circle'));
+    this.toolLineBtn?.addEventListener('click', () => this.selectTool('line'));
+    this.toolEraserBtn?.addEventListener('click', () => this.selectTool('eraser'));
 
     // Custom color picker
     this.customColorPicker.addEventListener('input', (e) => {
@@ -233,6 +266,38 @@ export class UIManager {
         const w = Number((btn as HTMLElement).dataset.width);
         this.setStrokeWidth(w);
       });
+    });
+
+    // Live Emoji Reactions buttons
+    const reactionBtns = document.querySelectorAll('.reaction-btn');
+    reactionBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const emoji = (btn as HTMLElement).dataset.emoji;
+        if (emoji && this.options.onSendReaction) {
+          this.options.onSendReaction(emoji);
+        }
+      });
+    });
+
+    // Grid toggle button
+    this.gridToggleBtn?.addEventListener('click', () => {
+      if (this.currentGrid === 'clean') {
+        this.currentGrid = 'dots';
+        this.gridLabelEl.textContent = 'Grid: Dots';
+      } else if (this.currentGrid === 'dots') {
+        this.currentGrid = 'grid';
+        this.gridLabelEl.textContent = 'Grid: Lines';
+      } else {
+        this.currentGrid = 'clean';
+        this.gridLabelEl.textContent = 'Grid: Off';
+      }
+      this.options.onToggleGrid?.(this.currentGrid);
+      this.showToast(`Canvas: ${this.gridLabelEl.textContent}`);
+    });
+
+    // Export PNG button
+    this.exportBtn?.addEventListener('click', () => {
+      this.options.onExport?.();
     });
 
     // Undo / Redo
@@ -300,7 +365,6 @@ export class UIManager {
 
     // Global keyboard shortcuts
     window.addEventListener('keydown', (e: KeyboardEvent) => {
-      // Ignore shortcut if typing in input
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         if (e.key === 'Escape') {
           this.roomModal.classList.add('hidden');
@@ -323,12 +387,30 @@ export class UIManager {
         this.options.onRedo();
       } else if (e.key.toLowerCase() === 'b') {
         this.selectTool('brush');
+      } else if (e.key.toLowerCase() === 'r') {
+        this.selectTool('rectangle');
+      } else if (e.key.toLowerCase() === 'c') {
+        this.selectTool('circle');
+      } else if (e.key.toLowerCase() === 'l') {
+        this.selectTool('line');
       } else if (e.key.toLowerCase() === 'e') {
         this.selectTool('eraser');
       } else if (e.key === '[') {
         this.setStrokeWidth(this.currentWidth - 2);
       } else if (e.key === ']') {
         this.setStrokeWidth(this.currentWidth + 2);
+      } else if (e.key === '1') {
+        this.options.onSendReaction?.('❤️');
+      } else if (e.key === '2') {
+        this.options.onSendReaction?.('🔥');
+      } else if (e.key === '3') {
+        this.options.onSendReaction?.('👍');
+      } else if (e.key === '4') {
+        this.options.onSendReaction?.('🎉');
+      } else if (e.key === '5') {
+        this.options.onSendReaction?.('🚀');
+      } else if (e.key === '6') {
+        this.options.onSendReaction?.('🎨');
       } else if (e.key === 'Escape') {
         this.clearModal.classList.add('hidden');
         this.roomModal.classList.add('hidden');
@@ -398,6 +480,43 @@ export class UIManager {
   }
 
   /**
+   * Render floating live emoji reaction animation.
+   */
+  public renderFloatingReaction(emoji: string, x: number, y: number): void {
+    const el = document.createElement('div');
+    el.className = 'floating-reaction';
+    el.textContent = emoji;
+
+    // Slight random horizontal jitter
+    const jitterX = (Math.random() - 0.5) * 30;
+    el.style.left = `${x + jitterX}px`;
+    el.style.top = `${y}px`;
+
+    this.reactionsContainer.appendChild(el);
+
+    setTimeout(() => {
+      el.remove();
+    }, 2300);
+  }
+
+  /**
+   * Render pointer click ripple animation.
+   */
+  public renderClickRipple(x: number, y: number, color: string): void {
+    const ripple = document.createElement('div');
+    ripple.className = 'click-ripple';
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.style.borderColor = color;
+
+    this.ripplesContainer.appendChild(ripple);
+
+    setTimeout(() => {
+      ripple.remove();
+    }, 700);
+  }
+
+  /**
    * Render or update a remote user's cursor pointer with name badge.
    */
   public updateRemoteCursor(
@@ -427,11 +546,9 @@ export class UIManager {
       this.remoteCursors.set(userId, cursorEntry);
     }
 
-    // Position cursor element
     cursorEntry.element.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
     cursorEntry.element.style.opacity = '1';
 
-    // Clear existing idle timer and start fresh 4s idle fadeout
     if (cursorEntry.timer) {
       clearTimeout(cursorEntry.timer);
     }

@@ -16,7 +16,8 @@ import {
   validateCursor,
   validateStrokeStart,
   validateStrokeChunk,
-  validateStrokeEnd
+  validateStrokeEnd,
+  validateReaction
 } from './validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -264,6 +265,29 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     });
   });
 
+  socket.on('reaction:send', (payload) => {
+    const roomId = socketRoomMap.get(socket.id);
+    if (!roomId) return;
+
+    const validation = validateReaction(payload);
+    if (!validation.valid || !validation.value) return;
+
+    const users = roomManager.getRoomUsers(roomId);
+    const currentUser = users.find(u => u.id === socket.id);
+    if (!currentUser) return;
+
+    // Broadcast reaction to everyone in the room (including sender for feedback)
+    io.to(roomId).emit('reaction:receive', {
+      userId: currentUser.id,
+      userName: currentUser.name,
+      color: currentUser.color,
+      emoji: validation.value.emoji,
+      x: validation.value.x,
+      y: validation.value.y,
+      timestamp: Date.now()
+    });
+  });
+
   socket.on('client:ping', (payload) => {
     socket.emit('server:pong', {
       clientTimestamp: payload?.timestamp || Date.now(),
@@ -290,6 +314,18 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       }
     }
   });
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    const port = process.env.PORT || 3000;
+    console.error(`\n⚠️  Port ${port} is already in use by another running server instance.`);
+    console.error(`👉 If another server instance is already running, open http://localhost:${port}`);
+    console.error(`👉 Or stop the process using port ${port} by running: npm run kill\n`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
 });
 
 export function startServer(port: number = Number(process.env.PORT) || 3000) {

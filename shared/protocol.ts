@@ -4,7 +4,7 @@
  * between client and server.
  */
 
-export type ToolType = 'brush' | 'eraser';
+export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'circle' | 'line';
 
 export interface Point {
   x: number;
@@ -50,6 +50,19 @@ export interface ActiveStroke {
 }
 
 /**
+ * Live Reaction Event (ephemeral floating emoji).
+ */
+export interface EmojiReaction {
+  userId: string;
+  userName: string;
+  color: string;
+  emoji: string;
+  x: number;
+  y: number;
+  timestamp: number;
+}
+
+/**
  * Full state snapshot of a room, sent upon joining or reconnecting.
  */
 export interface RoomSnapshot {
@@ -81,6 +94,7 @@ export interface ClientToServerEvents {
   'canvas:clear': () => void;
   'history:undo': () => void;
   'history:redo': () => void;
+  'reaction:send': (payload: { emoji: string; x: number; y: number }) => void;
   'client:ping': (payload: { timestamp: number }) => void;
 }
 
@@ -105,6 +119,7 @@ export interface ServerToClientEvents {
   'stroke:chunk': (payload: { id: string; userId: string; points: Point[] }) => void;
   'stroke:end': (operation: DrawOperation) => void;
   'canvas:clear': (payload: { clearedBy: string; seq: number }) => void;
+  'reaction:receive': (reaction: EmojiReaction) => void;
   'history:changed': (payload: {
     operations: DrawOperation[];
     canUndo: boolean;

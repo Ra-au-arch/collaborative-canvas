@@ -2,7 +2,7 @@ import { CanvasManager } from './canvas.js';
 import { SocketClient } from './socket.js';
 import { UIManager } from './ui.js';
 import { ClientAppState, ConnectionState } from './types.js';
-import { Point, ToolType, UserInfo, DrawOperation } from '../shared/protocol.js';
+import { Point, ToolType, DrawOperation } from '../shared/protocol.js';
 
 class CollaborativeCanvasApp {
   private canvasManager!: CanvasManager;
@@ -30,6 +30,8 @@ class CollaborativeCanvasApp {
       operationCount: 0
     }
   };
+
+  private lastPointerPos: Point = { x: 300, y: 300 };
 
   // FPS calculation
   private frameCount: number = 0;
@@ -94,11 +96,36 @@ class CollaborativeCanvasApp {
       onRoomChange: (newRoom: string) => {
         if (newRoom === this.state.roomId) return;
         this.switchRoom(newRoom);
+      },
+      onSendReaction: (emoji: string) => {
+        this.socketClient.emitReaction(emoji, this.lastPointerPos.x, this.lastPointerPos.y);
+      },
+      onToggleGrid: (gridType: 'clean' | 'dots' | 'grid') => {
+        this.canvasManager.setGridType(gridType);
+      },
+      onExport: () => {
+        this.handleExport();
       }
     });
 
     this.uiManager.setRoomName(this.state.roomId);
     this.uiManager.setConnectionState(this.state.connectionState);
+  }
+
+  private handleExport(): void {
+    try {
+      const dataUrl = this.canvasManager.exportImage();
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.download = `drawsync-${this.state.roomId}-${timestamp}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      this.uiManager.showToast('🎉 Canvas exported as PNG image!');
+    } catch (e) {
+      this.uiManager.showToast('❌ Export failed');
+    }
   }
 
   private initCanvas(): void {
@@ -112,6 +139,8 @@ class CollaborativeCanvasApp {
       draftCanvas,
       onStrokeStart: (tool: ToolType, color: string, width: number, startPoint: Point) => {
         this.uiManager.hideOnboardingHint();
+        this.uiManager.renderClickRipple(startPoint.x, startPoint.y, color);
+
         this.state.isDrawing = true;
         this.state.activeStrokeId = `op_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
@@ -142,6 +171,7 @@ class CollaborativeCanvasApp {
         this.state.isDrawing = false;
       },
       onPointerMove: (point: Point) => {
+        this.lastPointerPos = point;
         this.socketClient.emitCursorMove(point);
       }
     });
@@ -225,6 +255,9 @@ class CollaborativeCanvasApp {
         this.uiManager.updateHistoryButtons(false, false);
         this.uiManager.showToast(`🧹 Canvas cleared by ${payload.clearedBy}`);
         this.syncDiagnostics();
+      },
+      onReaction: (reaction) => {
+        this.uiManager.renderFloatingReaction(reaction.emoji, reaction.x, reaction.y);
       },
       onHistoryChanged: (payload) => {
         this.state.operations = payload.operations;

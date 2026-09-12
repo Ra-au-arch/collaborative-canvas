@@ -178,6 +178,24 @@ export class CanvasManager {
     this.redrawDraft();
   }
 
+  private gridType: 'clean' | 'dots' | 'grid' = 'clean';
+
+  public setGridType(type: 'clean' | 'dots' | 'grid'): void {
+    this.gridType = type;
+    this.redrawAll();
+  }
+
+  public getGridType(): 'clean' | 'dots' | 'grid' {
+    return this.gridType;
+  }
+
+  /**
+   * Export the committed drawing as a high-resolution PNG Data URL.
+   */
+  public exportImage(): string {
+    return this.mainCanvas.toDataURL('image/png');
+  }
+
   /**
    * Redraw canonical operations on main canvas.
    */
@@ -188,12 +206,51 @@ export class CanvasManager {
     this.mainCtx.fillStyle = CANVAS_BG;
     this.mainCtx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
 
+    // Draw background texture pattern if selected
+    if (this.gridType === 'dots') {
+      this.drawDotsPattern(this.mainCtx);
+    } else if (this.gridType === 'grid') {
+      this.drawGridPattern(this.mainCtx);
+    }
+
     // Draw historical operations in server sequence order
     for (const op of this.operations) {
       this.drawStroke(this.mainCtx, op.points, op.tool, op.color, op.width);
     }
 
     this.redrawDraft();
+  }
+
+  private drawDotsPattern(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    ctx.fillStyle = '#cbd5e1';
+    const spacing = 24;
+    for (let x = spacing; x < this.logicalWidth; x += spacing) {
+      for (let y = spacing; y < this.logicalHeight; y += spacing) {
+        ctx.beginPath();
+        ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  private drawGridPattern(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    const spacing = 28;
+    ctx.beginPath();
+    for (let x = 0; x < this.logicalWidth; x += spacing) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.logicalHeight);
+    }
+    for (let y = 0; y < this.logicalHeight; y += spacing) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(this.logicalWidth, y);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**
@@ -214,27 +271,28 @@ export class CanvasManager {
         this.localStrokePoints,
         this.currentTool,
         this.currentColor,
-        this.currentWidth
+        this.currentWidth,
+        true // isDraft
       );
     }
   }
 
   /**
-   * Core rendering method with midpoint quadratic Bézier curve smoothing.
+   * Core rendering method with Bézier smoothing for brushes and precise vector shapes.
    */
   private drawStroke(
     ctx: CanvasRenderingContext2D,
     points: Point[],
     tool: ToolType,
     color: string,
-    width: number
+    width: number,
+    isDraft: boolean = false
   ): void {
     if (!points || points.length === 0) return;
 
     ctx.save();
 
     if (tool === 'eraser') {
-      // For eraser, draw using canvas background color with round cap
       ctx.strokeStyle = CANVAS_BG;
       ctx.fillStyle = CANVAS_BG;
     } else {
@@ -246,8 +304,60 @@ export class CanvasManager {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    // 1. Rectangle Tool
+    if (tool === 'rectangle') {
+      const start = points[0];
+      const end = points[points.length - 1];
+      const x = Math.min(start.x, end.x);
+      const y = Math.min(start.y, end.y);
+      const w = Math.abs(end.x - start.x);
+      const h = Math.abs(end.y - start.y);
+
+      ctx.beginPath();
+      ctx.strokeRect(x, y, w, h);
+
+      if (isDraft && w > 8 && h > 8) {
+        // Draw dimension hint pill during draft drag
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(x, y - 22, 70, 18);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px JetBrains Mono, monospace';
+        ctx.fillText(`${Math.round(w)} × ${Math.round(h)}`, x + 6, y - 9);
+      }
+      ctx.restore();
+      return;
+    }
+
+    // 2. Circle / Ellipse Tool
+    if (tool === 'circle') {
+      const start = points[0];
+      const end = points[points.length - 1];
+      const rx = Math.abs(end.x - start.x) / 2;
+      const ry = Math.abs(end.y - start.y) / 2;
+      const cx = Math.min(start.x, end.x) + rx;
+      const cy = Math.min(start.y, end.y) + ry;
+
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    // 3. Line / Arrow Tool
+    if (tool === 'line') {
+      const start = points[0];
+      const end = points[points.length - 1];
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    // 4. Brush / Eraser Tool (Midpoint Bézier Interpolation)
     if (points.length === 1) {
-      // Single dot / tap
       ctx.beginPath();
       ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
       ctx.fill();
@@ -256,7 +366,6 @@ export class CanvasManager {
     }
 
     if (points.length === 2) {
-      // Simple line between two points
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
       ctx.lineTo(points[1].x, points[1].y);
@@ -265,7 +374,6 @@ export class CanvasManager {
       return;
     }
 
-    // Smooth spline using midpoint Bézier interpolation
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
 
@@ -277,7 +385,6 @@ export class CanvasManager {
       ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
     }
 
-    // Connect to the final point
     const lastPoint = points[points.length - 1];
     ctx.lineTo(lastPoint.x, lastPoint.y);
     ctx.stroke();

@@ -8,6 +8,7 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/build.mjs && node dist/server/server.js",
     "serve": "node dist/server/server.js",
+    "kill": "kill -9 $(lsof -ti :3000) 2>/dev/null || true",
     "test": "node --import tsx --test server/__tests__/drawing-state.test.ts server/__tests__/e2e-socket.test.ts",
     "typecheck": "tsc --noEmit"
   },

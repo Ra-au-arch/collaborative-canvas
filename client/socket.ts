@@ -27,6 +27,7 @@ export interface SocketCallbacks {
     action: 'undo' | 'redo' | 'clear' | 'commit';
     affectedOpId?: string;
   }) => void;
+  onReaction: (reaction: import('../shared/protocol.js').EmojiReaction) => void;
   onError: (error: { code: string; message: string }) => void;
   onPong: (latencyMs: number) => void;
 }
@@ -125,6 +126,10 @@ export class SocketClient {
       this.callbacks.onHistoryChanged(payload);
     });
 
+    this.socket.on('reaction:receive', (reaction) => {
+      this.callbacks.onReaction(reaction);
+    });
+
     this.socket.on('app:error', (error) => {
       this.callbacks.onError(error);
     });
@@ -182,6 +187,12 @@ export class SocketClient {
   public emitRedo(): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit('history:redo');
+    }
+  }
+
+  public emitReaction(emoji: string, x: number, y: number): void {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('reaction:send', { emoji, x, y });
     }
   }
 

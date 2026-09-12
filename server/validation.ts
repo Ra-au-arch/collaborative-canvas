@@ -41,7 +41,13 @@ export function isValidPoint(point: unknown): point is Point {
 }
 
 export function isValidTool(tool: unknown): tool is ToolType {
-  return tool === 'brush' || tool === 'eraser';
+  return (
+    tool === 'brush' ||
+    tool === 'eraser' ||
+    tool === 'rectangle' ||
+    tool === 'circle' ||
+    tool === 'line'
+  );
 }
 
 export function isValidColor(color: unknown): color is string {
@@ -165,4 +171,25 @@ export function validateCursor(payload: unknown): ValidationResult<Point> {
   }
   const p = payload as Point;
   return { valid: true, value: { x: Number(p.x), y: Number(p.y) } };
+}
+
+export function validateReaction(payload: unknown): ValidationResult<{ emoji: string; x: number; y: number }> {
+  if (!payload || typeof payload !== 'object') {
+    return { valid: false, error: 'Payload must be an object' };
+  }
+  const data = payload as Record<string, unknown>;
+  if (typeof data.emoji !== 'string' || data.emoji.length === 0 || data.emoji.length > 8) {
+    return { valid: false, error: 'Invalid reaction emoji' };
+  }
+  if (!isValidPoint({ x: data.x, y: data.y })) {
+    return { valid: false, error: 'Invalid reaction coordinates' };
+  }
+  return {
+    valid: true,
+    value: {
+      emoji: data.emoji,
+      x: Number(data.x),
+      y: Number(data.y)
+    }
+  };
 }
