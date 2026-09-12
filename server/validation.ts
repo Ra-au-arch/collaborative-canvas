@@ -14,8 +14,8 @@ export function sanitizeRoomId(raw: unknown): ValidationResult<string> {
   if (trimmed.length === 0 || trimmed.length > 64) {
     return { valid: false, error: 'Room ID must be between 1 and 64 characters' };
   }
-  // Allow letters, numbers, dashes, underscores
-  const sanitized = trimmed.replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 64);
+  // Allow letters, numbers, dashes, underscores (case-insensitive for room parity)
+  const sanitized = trimmed.toLowerCase().replace(/[^a-z0-9-_]/g, '-').slice(0, 64);
   if (sanitized.length === 0) {
     return { valid: false, error: 'Room ID contains no valid characters' };
   }
@@ -46,7 +46,8 @@ export function isValidTool(tool: unknown): tool is ToolType {
     tool === 'eraser' ||
     tool === 'rectangle' ||
     tool === 'circle' ||
-    tool === 'line'
+    tool === 'line' ||
+    tool === 'text'
   );
 }
 
@@ -68,6 +69,7 @@ export function validateStrokeStart(payload: unknown): ValidationResult<{
   color: string;
   width: number;
   point: Point;
+  text?: string;
 }> {
   if (!payload || typeof payload !== 'object') {
     return { valid: false, error: 'Payload must be an object' };
@@ -90,6 +92,11 @@ export function validateStrokeStart(payload: unknown): ValidationResult<{
     return { valid: false, error: 'Invalid start point coordinates' };
   }
 
+  let text: string | undefined = undefined;
+  if (typeof data.text === 'string') {
+    text = data.text.slice(0, 1000);
+  }
+
   return {
     valid: true,
     value: {
@@ -97,7 +104,8 @@ export function validateStrokeStart(payload: unknown): ValidationResult<{
       tool: data.tool,
       color: data.color,
       width: Number(data.width),
-      point: { x: Number(data.point.x), y: Number(data.point.y) }
+      point: { x: Number(data.point.x), y: Number(data.point.y) },
+      text
     }
   };
 }
@@ -138,6 +146,7 @@ export function validateStrokeChunk(payload: unknown): ValidationResult<{
 export function validateStrokeEnd(payload: unknown): ValidationResult<{
   id: string;
   point?: Point;
+  text?: string;
 }> {
   if (!payload || typeof payload !== 'object') {
     return { valid: false, error: 'Payload must be an object' };
@@ -156,11 +165,17 @@ export function validateStrokeEnd(payload: unknown): ValidationResult<{
     finalPoint = { x: Number(data.point.x), y: Number(data.point.y) };
   }
 
+  let text: string | undefined = undefined;
+  if (typeof data.text === 'string') {
+    text = data.text.slice(0, 1000);
+  }
+
   return {
     valid: true,
     value: {
       id: data.id,
-      point: finalPoint
+      point: finalPoint,
+      text
     }
   };
 }

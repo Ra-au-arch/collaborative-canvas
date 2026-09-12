@@ -211,4 +211,19 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     return room ? room.drawing : null;
   }
+
+  /**
+   * List all currently active rooms.
+   */
+  public getActiveRooms(): { roomId: string; userCount: number; opCount: number }[] {
+    const list: { roomId: string; userCount: number; opCount: number }[] = [];
+    for (const [roomId, room] of this.rooms.entries()) {
+      list.push({
+        roomId,
+        userCount: room.state.users.size,
+        opCount: room.drawing.getOperations().length
+      });
+    }
+    return list;
+  }
 }

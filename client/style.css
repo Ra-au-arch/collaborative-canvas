@@ -598,29 +598,33 @@ html, body {
 
 .floating-reaction {
   position: absolute;
-  font-size: 32px;
+  font-size: 36px;
   user-select: none;
   pointer-events: none;
-  animation: floatUp 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
+  animation: floatUp 3.5s cubic-bezier(0.16, 0.84, 0.25, 1) forwards;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
   will-change: transform, opacity;
 }
 
 @keyframes floatUp {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.3) rotate(-15deg);
+    transform: translate(-50%, -50%) scale(0.2) rotate(-15deg);
   }
-  15% {
+  12% {
     opacity: 1;
-    transform: translate(-50%, -70%) scale(1.35) rotate(10deg);
+    transform: translate(-50%, -60px) scale(1.4) rotate(10deg);
   }
-  35% {
-    transform: translate(-50%, -100%) scale(1.05) rotate(-6deg);
+  28% {
+    transform: translate(-50%, -110px) scale(1.1) rotate(-8deg);
+  }
+  70% {
+    opacity: 0.95;
+    transform: translate(-50%, -220px) scale(1.0) rotate(12deg);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -260px) scale(0.9) rotate(20deg);
+    transform: translate(-50%, -340px) scale(0.85) rotate(-15deg);
   }
 }
 
@@ -779,7 +783,19 @@ html, body {
   z-index: 40;
 }
 
+/* Hover bridge prevents popover from closing prematurely */
+.width-slider-popover::after {
+  content: '';
+  position: absolute;
+  bottom: -16px;
+  left: 0;
+  width: 100%;
+  height: 18px;
+  pointer-events: auto;
+}
+
 .width-group:hover .width-slider-popover,
+.width-slider-popover.open,
 .width-slider-popover:focus-within {
   opacity: 1;
   pointer-events: auto;
@@ -1039,4 +1055,95 @@ html, body {
   .diagnostics-panel {
     display: none; /* Hide diagnostics on small touch screens to avoid clutter */
   }
+}
+
+/* --------------------------------------------------------------------------
+   Inline Canvas Text Tool
+   -------------------------------------------------------------------------- */
+.text-editor-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.canvas-inline-input {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px dashed var(--accent-primary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  outline: none;
+  pointer-events: auto;
+  box-shadow: var(--shadow-md);
+  min-width: 140px;
+  max-width: 400px;
+  line-height: 1.3;
+  z-index: 30;
+}
+
+/* --------------------------------------------------------------------------
+   Active Rooms Discovery in Switch Room Modal
+   -------------------------------------------------------------------------- */
+.active-rooms-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  text-align: left;
+}
+
+.active-rooms-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.active-rooms-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.active-room-chip {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.active-room-chip:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.active-room-chip .badge {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+}
+
+.active-room-chip.loading {
+  cursor: default;
+  color: var(--text-muted);
 }

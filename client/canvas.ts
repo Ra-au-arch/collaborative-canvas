@@ -153,7 +153,7 @@ export class CanvasManager {
     this.operations.sort((a, b) => a.seq - b.seq);
 
     // Draw directly to main canvas
-    this.drawStroke(this.mainCtx, op.points, op.tool, op.color, op.width);
+    this.drawStroke(this.mainCtx, op.points, op.tool, op.color, op.width, false, op.text);
 
     // Remove from remote active strokes if present
     this.remoteActiveStrokes.delete(op.id);
@@ -215,7 +215,7 @@ export class CanvasManager {
 
     // Draw historical operations in server sequence order
     for (const op of this.operations) {
-      this.drawStroke(this.mainCtx, op.points, op.tool, op.color, op.width);
+      this.drawStroke(this.mainCtx, op.points, op.tool, op.color, op.width, false, op.text);
     }
 
     this.redrawDraft();
@@ -261,7 +261,7 @@ export class CanvasManager {
 
     // Draw all remote active strokes
     for (const stroke of this.remoteActiveStrokes.values()) {
-      this.drawStroke(this.draftCtx, stroke.points, stroke.tool, stroke.color, stroke.width);
+      this.drawStroke(this.draftCtx, stroke.points, stroke.tool, stroke.color, stroke.width, false, stroke.text);
     }
 
     // Draw local active stroke
@@ -286,7 +286,8 @@ export class CanvasManager {
     tool: ToolType,
     color: string,
     width: number,
-    isDraft: boolean = false
+    isDraft: boolean = false,
+    text?: string
   ): void {
     if (!points || points.length === 0) return;
 
@@ -303,6 +304,18 @@ export class CanvasManager {
     ctx.lineWidth = width;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+
+    // 0. Text Tool
+    if (tool === 'text') {
+      const pt = points[0];
+      const fontSize = Math.max(16, width * 4);
+      ctx.font = `600 ${fontSize}px Inter, -apple-system, BlinkMacSystemFont, sans-serif`;
+      ctx.fillStyle = color;
+      ctx.textBaseline = 'top';
+      ctx.fillText(text || '', pt.x, pt.y);
+      ctx.restore();
+      return;
+    }
 
     // 1. Rectangle Tool
     if (tool === 'rectangle') {
@@ -403,9 +416,14 @@ export class CanvasManager {
       // Only handle primary button / finger touch
       if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-      target.setPointerCapture(e.pointerId);
       const pt = this.getPointerPos(e);
 
+      if (this.currentTool === 'text') {
+        this.onStrokeStartCb('text', this.currentColor, this.currentWidth, pt);
+        return;
+      }
+
+      target.setPointerCapture(e.pointerId);
       this.isDrawing = true;
       this.localStrokePoints = [pt];
       this.pendingChunkPoints = [];

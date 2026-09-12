@@ -154,6 +154,7 @@ export class SocketClient {
     color: string;
     width: number;
     point: Point;
+    text?: string;
   }): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit('stroke:start', payload);
@@ -166,7 +167,7 @@ export class SocketClient {
     }
   }
 
-  public emitStrokeEnd(payload: { id: string; point?: Point }): void {
+  public emitStrokeEnd(payload: { id: string; point?: Point; text?: string }): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit('stroke:end', payload);
     }

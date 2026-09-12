@@ -141,6 +141,27 @@ class CollaborativeCanvasApp {
         this.uiManager.hideOnboardingHint();
         this.uiManager.renderClickRipple(startPoint.x, startPoint.y, color);
 
+        if (tool === 'text') {
+          this.uiManager.spawnTextInput(startPoint.x, startPoint.y, color, width, (text: string) => {
+            if (!text.trim()) return;
+            const opId = `op_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            this.socketClient.emitStrokeStart({
+              id: opId,
+              tool: 'text',
+              color,
+              width,
+              point: startPoint,
+              text
+            });
+            this.socketClient.emitStrokeEnd({
+              id: opId,
+              point: startPoint,
+              text
+            });
+          });
+          return;
+        }
+
         this.state.isDrawing = true;
         this.state.activeStrokeId = `op_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 

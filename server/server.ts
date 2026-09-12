@@ -52,6 +52,13 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Active rooms endpoint for room discovery
+app.get('/api/rooms', (_req, res) => {
+  res.json({
+    rooms: roomManager.getActiveRooms()
+  });
+});
+
 // Single-page application fallback
 app.get('*', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
@@ -149,7 +156,8 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       validation.value.tool,
       validation.value.color,
       validation.value.width,
-      validation.value.point
+      validation.value.point,
+      validation.value.text
     );
 
     // Stream live stroke start to all peers in the room
@@ -187,7 +195,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     const drawing = roomManager.getDrawingManager(roomId);
     if (!drawing) return;
 
-    const committedOp = drawing.endStroke(validation.value.id, validation.value.point);
+    const committedOp = drawing.endStroke(
+      validation.value.id,
+      validation.value.point,
+      validation.value.text
+    );
     if (!committedOp) return;
 
     // Authoritative commit: broadcast committed operation with server sequence number to ALL clients
@@ -335,8 +347,14 @@ export function startServer(port: number = Number(process.env.PORT) || 3000) {
   });
 }
 
-const isRunningInTest = !!process.env.NODE_TEST_CONTEXT || process.execArgv.includes('--test') || process.env.NODE_ENV === 'test';
-if (!isRunningInTest) {
+const isMain = process.argv[1]?.endsWith('server.js') || process.argv[1]?.endsWith('server.ts');
+const isRunningInTest =
+  process.env.NODE_ENV === 'test' ||
+  !!process.env.NODE_TEST_CONTEXT ||
+  process.execArgv.includes('--test') ||
+  process.argv.some((arg) => arg.includes('test'));
+
+if (isMain && !isRunningInTest) {
   startServer();
 }
 

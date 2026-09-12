@@ -45,6 +45,7 @@ export class UIManager {
 
   // Toolbar elements
   private toolBrushBtn: HTMLButtonElement;
+  private toolTextBtn: HTMLButtonElement;
   private toolRectangleBtn: HTMLButtonElement;
   private toolCircleBtn: HTMLButtonElement;
   private toolLineBtn: HTMLButtonElement;
@@ -52,6 +53,8 @@ export class UIManager {
   private swatchesContainer: HTMLElement;
   private customColorPicker: HTMLInputElement;
   private customColorPreview: HTMLElement;
+  private widthPreviewChip: HTMLElement;
+  private widthSliderPopover: HTMLElement;
   private strokeWidthSlider: HTMLInputElement;
   private widthValueLabel: HTMLElement;
   private widthPreviewDot: HTMLElement;
@@ -67,6 +70,7 @@ export class UIManager {
   private switchRoomForm: HTMLFormElement;
   private roomNameInput: HTMLInputElement;
   private cancelRoomBtn: HTMLButtonElement;
+  private activeRoomsListEl: HTMLElement;
 
   // Cursors & Overlay
   private cursorsContainer: HTMLElement;
@@ -111,6 +115,7 @@ export class UIManager {
     this.dropdownUserCountEl = document.getElementById('dropdownUserCount')!;
 
     this.toolBrushBtn = document.getElementById('toolBrush') as HTMLButtonElement;
+    this.toolTextBtn = document.getElementById('toolText') as HTMLButtonElement;
     this.toolRectangleBtn = document.getElementById('toolRectangle') as HTMLButtonElement;
     this.toolCircleBtn = document.getElementById('toolCircle') as HTMLButtonElement;
     this.toolLineBtn = document.getElementById('toolLine') as HTMLButtonElement;
@@ -118,6 +123,8 @@ export class UIManager {
     this.swatchesContainer = document.getElementById('swatchesContainer')!;
     this.customColorPicker = document.getElementById('customColorPicker') as HTMLInputElement;
     this.customColorPreview = document.getElementById('customColorPreview')!;
+    this.widthPreviewChip = document.getElementById('widthPreviewChip')!;
+    this.widthSliderPopover = document.getElementById('widthSliderPopover')!;
     this.strokeWidthSlider = document.getElementById('strokeWidthSlider') as HTMLInputElement;
     this.widthValueLabel = document.getElementById('widthValueLabel')!;
     this.widthPreviewDot = document.getElementById('widthPreviewDot')!;
@@ -132,6 +139,7 @@ export class UIManager {
     this.switchRoomForm = document.getElementById('switchRoomForm') as HTMLFormElement;
     this.roomNameInput = document.getElementById('roomNameInput') as HTMLInputElement;
     this.cancelRoomBtn = document.getElementById('cancelRoomBtn') as HTMLButtonElement;
+    this.activeRoomsListEl = document.getElementById('activeRoomsList')!;
 
     this.cursorsContainer = document.getElementById('cursorsContainer')!;
     this.reactionsContainer = document.getElementById('reactionsContainer')!;
@@ -197,6 +205,7 @@ export class UIManager {
     // Clear active from all tool buttons
     const toolBtns = [
       this.toolBrushBtn,
+      this.toolTextBtn,
       this.toolRectangleBtn,
       this.toolCircleBtn,
       this.toolLineBtn,
@@ -205,6 +214,7 @@ export class UIManager {
     toolBtns.forEach(btn => btn?.classList.remove('active'));
 
     if (tool === 'brush') this.toolBrushBtn?.classList.add('active');
+    else if (tool === 'text') this.toolTextBtn?.classList.add('active');
     else if (tool === 'rectangle') this.toolRectangleBtn?.classList.add('active');
     else if (tool === 'circle') this.toolCircleBtn?.classList.add('active');
     else if (tool === 'line') this.toolLineBtn?.classList.add('active');
@@ -242,6 +252,7 @@ export class UIManager {
   private setupListeners(): void {
     // Tool buttons
     this.toolBrushBtn?.addEventListener('click', () => this.selectTool('brush'));
+    this.toolTextBtn?.addEventListener('click', () => this.selectTool('text'));
     this.toolRectangleBtn?.addEventListener('click', () => this.selectTool('rectangle'));
     this.toolCircleBtn?.addEventListener('click', () => this.selectTool('circle'));
     this.toolLineBtn?.addEventListener('click', () => this.selectTool('line'));
@@ -259,6 +270,18 @@ export class UIManager {
       this.setStrokeWidth(width);
     });
 
+    // Width preview chip click toggle
+    this.widthPreviewChip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.widthSliderPopover.classList.toggle('open');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!this.widthSliderPopover.contains(e.target as Node) && e.target !== this.widthPreviewChip) {
+        this.widthSliderPopover.classList.remove('open');
+      }
+    });
+
     // Quick width presets
     const presets = document.querySelectorAll('.width-preset-btn');
     presets.forEach((btn) => {
@@ -271,7 +294,7 @@ export class UIManager {
     // Live Emoji Reactions buttons
     const reactionBtns = document.querySelectorAll('.reaction-btn');
     reactionBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const emoji = (btn as HTMLElement).dataset.emoji;
         if (emoji && this.options.onSendReaction) {
           this.options.onSendReaction(emoji);
@@ -320,13 +343,14 @@ export class UIManager {
     this.switchRoomBtn.addEventListener('click', () => {
       this.roomModal.classList.remove('hidden');
       this.roomNameInput.focus();
+      this.loadActiveRooms();
     });
     this.cancelRoomBtn.addEventListener('click', () => {
       this.roomModal.classList.add('hidden');
     });
     this.switchRoomForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const newRoom = this.roomNameInput.value.trim();
+      const newRoom = this.roomNameInput.value.trim().toLowerCase();
       if (newRoom) {
         this.roomModal.classList.add('hidden');
         this.options.onRoomChange(newRoom);
@@ -387,6 +411,8 @@ export class UIManager {
         this.options.onRedo();
       } else if (e.key.toLowerCase() === 'b') {
         this.selectTool('brush');
+      } else if (e.key.toLowerCase() === 't') {
+        this.selectTool('text');
       } else if (e.key.toLowerCase() === 'r') {
         this.selectTool('rectangle');
       } else if (e.key.toLowerCase() === 'c') {
@@ -415,8 +441,88 @@ export class UIManager {
         this.clearModal.classList.add('hidden');
         this.roomModal.classList.add('hidden');
         this.usersDropdownEl.classList.add('hidden');
+        this.widthSliderPopover.classList.remove('open');
       }
     });
+  }
+
+  private async loadActiveRooms(): Promise<void> {
+    if (!this.activeRoomsListEl) return;
+    try {
+      const res = await fetch('/api/rooms');
+      const data = await res.json();
+      this.activeRoomsListEl.innerHTML = '';
+      if (!data.rooms || data.rooms.length === 0) {
+        this.activeRoomsListEl.innerHTML = '<span class="active-room-chip loading">demo (1 online)</span>';
+        return;
+      }
+      data.rooms.forEach((r: { roomId: string; userCount: number; opCount: number }) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'active-room-chip';
+        chip.innerHTML = `${r.roomId} <span class="badge">${r.userCount} online</span>`;
+        chip.addEventListener('click', () => {
+          this.roomModal.classList.add('hidden');
+          this.options.onRoomChange(r.roomId);
+        });
+        this.activeRoomsListEl.appendChild(chip);
+      });
+    } catch {
+      this.activeRoomsListEl.innerHTML = '<span class="active-room-chip loading">demo</span>';
+    }
+  }
+
+  /**
+   * Spawn inline text input for canvas typing.
+   */
+  public spawnTextInput(
+    x: number,
+    y: number,
+    color: string,
+    width: number,
+    onCommit: (text: string) => void
+  ): void {
+    const existing = document.querySelector('.canvas-inline-input');
+    if (existing) existing.remove();
+
+    const container = document.getElementById('textEditorContainer');
+    if (!container) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'canvas-inline-input';
+    input.placeholder = 'Type text & Enter...';
+    input.style.left = `${x}px`;
+    input.style.top = `${y}px`;
+    input.style.color = color;
+    const fontSize = Math.max(16, width * 4);
+    input.style.fontSize = `${fontSize}px`;
+
+    container.appendChild(input);
+    input.focus();
+
+    let committed = false;
+    const finish = () => {
+      if (committed) return;
+      committed = true;
+      const val = input.value.trim();
+      input.remove();
+      if (val) {
+        onCommit(val);
+      }
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        finish();
+      } else if (e.key === 'Escape') {
+        committed = true;
+        input.remove();
+      }
+    });
+
+    input.addEventListener('blur', finish);
   }
 
   public setRoomName(room: string): void {
@@ -488,7 +594,7 @@ export class UIManager {
     el.textContent = emoji;
 
     // Slight random horizontal jitter
-    const jitterX = (Math.random() - 0.5) * 30;
+    const jitterX = (Math.random() - 0.5) * 40;
     el.style.left = `${x + jitterX}px`;
     el.style.top = `${y}px`;
 
@@ -496,7 +602,7 @@ export class UIManager {
 
     setTimeout(() => {
       el.remove();
-    }, 2300);
+    }, 3600);
   }
 
   /**

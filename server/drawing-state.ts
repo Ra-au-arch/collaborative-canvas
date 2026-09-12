@@ -34,7 +34,8 @@ export class DrawingStateManager {
     tool: ToolType,
     color: string,
     width: number,
-    point: Point
+    point: Point,
+    text?: string
   ): ActiveStroke {
     const stroke: ActiveStroke = {
       id,
@@ -44,6 +45,7 @@ export class DrawingStateManager {
       color,
       width,
       points: [point],
+      text,
       startTime: Date.now()
     };
     this.activeStrokes.set(id, stroke);
@@ -65,12 +67,16 @@ export class DrawingStateManager {
    * Assigns an authoritative server sequence number.
    * Clears the redo stack because a new mutation branches history.
    */
-  public endStroke(id: string, finalPoint?: Point): DrawOperation | null {
+  public endStroke(id: string, finalPoint?: Point, text?: string): DrawOperation | null {
     const stroke = this.activeStrokes.get(id);
     if (!stroke) return null;
 
     if (finalPoint) {
       stroke.points.push(finalPoint);
+    }
+
+    if (text !== undefined) {
+      stroke.text = text;
     }
 
     this.activeStrokes.delete(id);
@@ -85,6 +91,7 @@ export class DrawingStateManager {
       color: stroke.color,
       width: stroke.width,
       points: stroke.points,
+      text: stroke.text,
       timestamp: Date.now()
     };
 

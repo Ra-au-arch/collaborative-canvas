@@ -4,7 +4,7 @@
  * between client and server.
  */
 
-export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'circle' | 'line';
+export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'circle' | 'line' | 'text';
 
 export interface Point {
   x: number;
@@ -32,6 +32,7 @@ export interface DrawOperation {
   color: string;
   width: number;
   points: Point[];
+  text?: string;
   timestamp: number;
 }
 
@@ -46,6 +47,7 @@ export interface ActiveStroke {
   color: string;
   width: number;
   points: Point[];
+  text?: string;
   startTime: number;
 }
 
@@ -88,9 +90,10 @@ export interface ClientToServerEvents {
     color: string;
     width: number;
     point: Point;
+    text?: string;
   }) => void;
   'stroke:chunk': (payload: { id: string; points: Point[] }) => void;
-  'stroke:end': (payload: { id: string; point?: Point }) => void;
+  'stroke:end': (payload: { id: string; point?: Point; text?: string }) => void;
   'canvas:clear': () => void;
   'history:undo': () => void;
   'history:redo': () => void;
