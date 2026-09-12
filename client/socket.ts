@@ -90,11 +90,14 @@ export class SocketClient {
     });
 
     this.socket.io.on('error', () => {
-      this.callbacks.onConnectionChange('reconnecting');
+      if (!this.socket?.connected) {
+        this.callbacks.onConnectionChange('reconnecting');
+      }
     });
 
     // Event listeners
     this.socket.on('room:snapshot', (snapshot) => {
+      this.callbacks.onConnectionChange('connected');
       this.callbacks.onSnapshot(snapshot);
     });
 
