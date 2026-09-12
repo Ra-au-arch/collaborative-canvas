@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Real-Time Collaborative Drawing Canvas</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body class="app-body">
+  <!-- Top App Navigation Header -->
+  <header class="app-header" role="banner">
+    <div class="header-left">
+      <div class="app-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 19 7-7 3 3-7 7-3-3z"/>
+          <path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+          <path d="m2 2 7.586 7.586"/>
+          <circle cx="11" cy="11" r="2"/>
+        </svg>
+        <span class="logo-title">DrawSync</span>
+      </div>
+
+      <div class="room-pill" id="roomPill">
+        <span class="room-label">Room:</span>
+        <span class="room-name" id="currentRoomName">default</span>
+        <button class="btn-icon-subtle" id="copyLinkBtn" title="Copy Room Link to Clipboard" aria-label="Copy Room Link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span class="copy-text">Share</span>
+        </button>
+      </div>
+
+      <button class="btn-secondary" id="switchRoomBtn" title="Switch or create room">Switch Room</button>
+    </div>
+
+    <div class="header-right">
+      <!-- Connection Status Badge -->
+      <div class="status-badge" id="statusBadge" aria-live="polite">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+      </div>
+
+      <!-- Online Users Button/Dropdown Trigger -->
+      <div class="users-trigger-wrapper">
+        <button class="users-pill" id="usersTrigger" aria-expanded="false" aria-haspopup="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span id="userCountText">1 online</span>
+        </button>
+
+        <!-- Online Users Dropdown Panel -->
+        <div class="users-dropdown hidden" id="usersDropdown" role="region" aria-label="Online Collaborators">
+          <div class="users-dropdown-header">
+            <h4>Collaborators in Room</h4>
+            <span class="user-chip-count" id="dropdownUserCount">1</span>
+          </div>
+          <ul class="users-list" id="usersList">
+            <!-- Rendered dynamically -->
+          </ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Canvas Workspace Area -->
+  <main class="canvas-workspace" id="canvasWorkspace">
+    <!-- Empty State / Onboarding Overlay -->
+    <div class="onboarding-hint" id="onboardingHint">
+      <div class="hint-content">
+        <div class="hint-icon">✏️</div>
+        <h3>Welcome to Collaborative Canvas</h3>
+        <p>Pick a color, draw freely, or click <strong>Share</strong> to invite friends into this room.</p>
+        <div class="hint-shortcuts">
+          <span><kbd>B</kbd> Brush</span>
+          <span><kbd>E</kbd> Eraser</span>
+          <span><kbd>Cmd/Ctrl</kbd> + <kbd>Z</kbd> Undo</span>
+          <span><kbd>[</kbd> <kbd>]</kbd> Size</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas Layer Container -->
+    <div class="canvas-container" id="canvasContainer">
+      <!-- Main committed canvas -->
+      <canvas id="mainCanvas" class="drawing-canvas"></canvas>
+      <!-- Draft active strokes canvas -->
+      <canvas id="draftCanvas" class="drawing-canvas draft-canvas"></canvas>
+      <!-- Remote cursors container layer -->
+      <div id="cursorsContainer" class="cursors-container"></div>
+    </div>
+
+    <!-- Floating Bottom/Top Modern Toolbar -->
+    <nav class="floating-toolbar" role="toolbar" aria-label="Drawing tools">
+      <!-- Tool Selection -->
+      <div class="tool-group">
+        <button class="tool-btn active" id="toolBrush" data-tool="brush" title="Brush Tool (B)" aria-label="Brush Tool">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/>
+            <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/>
+          </svg>
+        </button>
+
+        <button class="tool-btn" id="toolEraser" data-tool="eraser" title="Eraser Tool (E)" aria-label="Eraser Tool">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
+            <path d="M22 21H7"/>
+            <path d="m5 11 9 9"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Color Palette -->
+      <div class="color-group" id="colorPaletteGroup">
+        <div class="swatches-row" id="swatchesContainer">
+          <!-- Preset colors rendered here -->
+        </div>
+
+        <div class="custom-color-wrapper" title="Custom color picker">
+          <input type="color" id="customColorPicker" value="#3b82f6" aria-label="Custom Color Picker">
+          <span class="custom-color-preview" id="customColorPreview"></span>
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Stroke Width Selector -->
+      <div class="width-group">
+        <div class="width-preview-chip" id="widthPreviewChip" title="Current stroke width">
+          <span class="width-preview-dot" id="widthPreviewDot"></span>
+          <span class="width-value-label" id="widthValueLabel">4px</span>
+        </div>
+        <div class="width-slider-popover" id="widthSliderPopover">
+          <div class="quick-widths">
+            <button class="width-preset-btn" data-width="2">2</button>
+            <button class="width-preset-btn active" data-width="4">4</button>
+            <button class="width-preset-btn" data-width="8">8</button>
+            <button class="width-preset-btn" data-width="16">16</button>
+            <button class="width-preset-btn" data-width="28">28</button>
+          </div>
+          <input type="range" id="strokeWidthSlider" min="1" max="60" value="4" aria-label="Stroke width slider">
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- History & Actions -->
+      <div class="action-group">
+        <button class="action-btn" id="undoBtn" title="Undo (Ctrl/Cmd + Z)" aria-label="Undo" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 7v6h6"/>
+            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+          </svg>
+        </button>
+
+        <button class="action-btn" id="redoBtn" title="Redo (Ctrl/Cmd + Shift + Z)" aria-label="Redo" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 7v6h-6"/>
+            <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+          </svg>
+        </button>
+
+        <button class="action-btn danger" id="clearBtn" title="Clear canvas" aria-label="Clear Canvas">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18"/>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            <line x1="10" y1="11" x2="10" y2="17"/>
+            <line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Diagnostics Panel (Collapsible) -->
+    <aside class="diagnostics-panel" id="diagnosticsPanel">
+      <button class="diagnostics-toggle" id="diagnosticsToggle" aria-expanded="false" title="Toggle Network Diagnostics">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        <span class="diagnostics-summary" id="diagSummaryFps">60 FPS</span>
+      </button>
+
+      <div class="diagnostics-content hidden" id="diagnosticsContent">
+        <div class="diag-item">
+          <span class="diag-label">FPS</span>
+          <span class="diag-val" id="diagFps">60</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Ping Latency</span>
+          <span class="diag-val" id="diagLatency">&lt;5 ms</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Room Users</span>
+          <span class="diag-val" id="diagUsers">1</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Operations</span>
+          <span class="diag-val" id="diagOps">0</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Display DPR</span>
+          <span class="diag-val" id="diagDpr">2.0x</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Clear Canvas Confirmation Modal -->
+  <div class="modal-backdrop hidden" id="clearModal" role="dialog" aria-modal="true" aria-labelledby="clearModalTitle">
+    <div class="modal-card">
+      <div class="modal-icon danger">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <h3 id="clearModalTitle">Clear Entire Canvas?</h3>
+      <p>This will erase all strokes for <strong>every collaborator</strong> currently in this room. This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancelClearBtn">Cancel</button>
+        <button class="btn-danger" id="confirmClearBtn">Clear Canvas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Switch Room Modal -->
+  <div class="modal-backdrop hidden" id="roomModal" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle">
+    <div class="modal-card">
+      <h3 id="roomModalTitle">Switch Collaboration Room</h3>
+      <p>Enter a room name or join an existing session:</p>
+      <form id="switchRoomForm" class="room-form">
+        <input type="text" id="roomNameInput" placeholder="e.g. design-sync, sprint-3, team-a" maxlength="40" required>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelRoomBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="submitRoomBtn">Join Room</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <script type="module" src="bundle.js"></script>
+</body>
+</html>
