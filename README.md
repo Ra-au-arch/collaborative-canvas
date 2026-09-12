@@ -145,24 +145,7 @@ This repository includes a turnkey `render.yaml` blueprint configured for single
 
 ## 📸 Screenshots & UI Layout
 
-```text
-+---------------------------------------------------------------------------------------+
-| [✏️ DrawSync]  [Room: demo (Share)] [Switch Room]            (🟢 Connected) [👥 2 online]|
-+---------------------------------------------------------------------------------------+
-|                                                                                       |
-|                                 (Remote Cursor: Alice ↗)                              |
-|            ~~~~~~ (Live Stroke Stream) ~~~~~~                                         |
-|                                                                                       |
-|                                                                                       |
-|                         [ 🎨 Pick a tool and draw! ]                                  |
-|                                                                                       |
-|                                                                                       |
-|               +-------------------------------------------------------+               |
-|               | [🖌️] [🧽] | (🔴)(🟠)(🟡)(🟢)(🔵)(🟣) | [4px ▾] | [↩️] [↪️] [🗑️] |               |
-|               +-------------------------------------------------------+               |
-|                                                                         [📊 60 FPS ▾] |
-+---------------------------------------------------------------------------------------+
-```
+![Real-Time Collaborative Drawing Canvas](docs/screenshot.png)
 
 ---
 
